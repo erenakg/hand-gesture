@@ -56,8 +56,9 @@ class Controller:
         Controller.ring_finger_down = landmarks[16].y > landmarks[13].y
         Controller.ring_finger_up = landmarks[16].y < landmarks[13].y
         
-        Controller.thumb_finger_down = landmarks[4].y > landmarks[2].y
-        Controller.thumb_finger_up = landmarks[4].y < landmarks[2].y
+        # Başparmak için özel kontrol (x koordinatı kullanarak)
+        Controller.thumb_finger_down = landmarks[4].x < landmarks[3].x
+        Controller.thumb_finger_up = landmarks[4].x > landmarks[3].x
         
         # Tüm parmakların durumu
         Controller.all_fingers_down = (Controller.index_finger_down and 
@@ -136,17 +137,24 @@ class Controller:
         if not cursor_frozen:
             pyautogui.moveTo(x, y, duration=0)
     
+    # Timing kontrolü için statik değişkenler
+    last_scroll_time = 0
+    scroll_delay = 0.2  # 200ms gecikme
+    
     @staticmethod
     def detect_scrolling():
         """Kaydırma işlemlerini algıla"""
+        current_time = time.time()
+        
         # Yukarı kaydırma: sadece işaret parmağı yukarı, diğerleri aşağı
         scrolling_up = (Controller.index_finger_up and 
                        Controller.middle_finger_down and 
                        Controller.ring_finger_down and 
                        Controller.little_finger_down)
         
-        if scrolling_up:
+        if scrolling_up and (current_time - Controller.last_scroll_time) > Controller.scroll_delay:
             pyautogui.scroll(3)  # Yukarı kaydır
+            Controller.last_scroll_time = current_time
             print("📜 Yukarı Kaydırma")
 
         # Aşağı kaydırma: sadece küçük parmak yukarı, diğerleri aşağı
@@ -155,13 +163,20 @@ class Controller:
                          Controller.middle_finger_down and 
                          Controller.ring_finger_down)
         
-        if scrolling_down:
+        if scrolling_down and (current_time - Controller.last_scroll_time) > Controller.scroll_delay:
             pyautogui.scroll(-3)  # Aşağı kaydır
+            Controller.last_scroll_time = current_time
             print("📜 Aşağı Kaydırma")
+    
+    # Zoom için timing kontrolü
+    last_zoom_time = 0
+    zoom_delay = 0.3  # 300ms gecikme
     
     @staticmethod
     def detect_zooming():
         """Yakınlaştırma/uzaklaştırma işlemlerini algıla"""
+        current_time = time.time()
+        
         # Zoom modu: işaret ve orta parmak yukarı, diğerleri aşağı
         zoom_mode = (Controller.index_finger_up and 
                     Controller.middle_finger_up and 
@@ -174,19 +189,22 @@ class Controller:
         landmarks = Controller.hand_landmarks.landmark
         distance = abs(landmarks[8].x - landmarks[12].x)  # İşaret ve orta parmak arası mesafe
         
-        # Uzaklaştırma: parmaklar yakın
-        if distance < 0.03:
-            pyautogui.keyDown('ctrl')
-            pyautogui.scroll(-2)
-            pyautogui.keyUp('ctrl')
-            print("🔍 Uzaklaştırma")
-        
-        # Yakınlaştırma: parmaklar uzak
-        elif distance > 0.08:
-            pyautogui.keyDown('ctrl')
-            pyautogui.scroll(2)
-            pyautogui.keyUp('ctrl')
-            print("🔍 Yakınlaştırma")
+        if (current_time - Controller.last_zoom_time) > Controller.zoom_delay:
+            # Uzaklaştırma: parmaklar yakın
+            if distance < 0.03:
+                pyautogui.keyDown('ctrl')
+                pyautogui.scroll(-2)
+                pyautogui.keyUp('ctrl')
+                Controller.last_zoom_time = current_time
+                print("🔍 Uzaklaştırma")
+            
+            # Yakınlaştırma: parmaklar uzak
+            elif distance > 0.08:
+                pyautogui.keyDown('ctrl')
+                pyautogui.scroll(2)
+                pyautogui.keyUp('ctrl')
+                Controller.last_zoom_time = current_time
+                print("🔍 Yakınlaştırma")
 
     @staticmethod
     def detect_clicking():
@@ -252,14 +270,21 @@ class Controller:
             Controller.dragging = False
             print("✋ Sürükleme Bitti")
 
+    # ESC tuşu için timing kontrolü
+    last_esc_time = 0
+    esc_delay = 1.0  # 1 saniye gecikme
+    
     @staticmethod
     def detect_special_gestures():
         """Özel el hareketlerini algıla"""
+        current_time = time.time()
+        
         # ESC tuşu: başparmak + küçük parmak temas
         if (Controller.little_finger_within_thumb_finger and 
             Controller.index_finger_up and 
             Controller.middle_finger_up and 
-            Controller.ring_finger_up):
+            Controller.ring_finger_up and
+            (current_time - Controller.last_esc_time) > Controller.esc_delay):
             pyautogui.press('esc')
+            Controller.last_esc_time = current_time
             print("⌨️ ESC Tuşu")
-            time.sleep(0.5)  # Tekrar engellemek için bekle

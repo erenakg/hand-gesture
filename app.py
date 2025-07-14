@@ -23,13 +23,23 @@ def main():
     
     # Kamera başlat
     cap = cv2.VideoCapture(0)
+    
+    # Kamera açılmazsa alternatif indeksler dene
     if not cap.isOpened():
-        print("❌ Kamera açılamadı!")
-        print("💡 Çözüm önerileri:")
-        print("   - Başka uygulamaların kamerayı kullanmadığından emin olun")
-        print("   - Kamera sürücülerini kontrol edin")
-        print("   - Windows Ayarlar > Gizlilik > Kamera izinlerini kontrol edin")
-        return
+        print("⚠️ Kamera 0 açılamadı, alternatif kameralar deneniyor...")
+        for i in range(1, 4):
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                print(f"✅ Kamera {i} başarıyla açıldı!")
+                break
+        else:
+            print("❌ Hiçbir kamera açılamadı!")
+            print("💡 Çözüm önerileri:")
+            print("   - Başka uygulamaların kamerayı kullanmadığından emin olun")
+            print("   - Kamera sürücülerini kontrol edin")
+            print("   - Windows Ayarlar > Gizlilik > Kamera izinlerini kontrol edin")
+            print("   - USB kamerayı çıkarıp tekrar takın")
+            return
     
     print("✅ Kamera başarıyla açıldı!")
     
@@ -94,14 +104,19 @@ def main():
                     # Controller'a landmark'ları aktar
                     Controller.hand_landmarks = hand_landmarks
                     
-                    # Kontrol işlemlerini çalıştır
-                    Controller.update_fingers_status()
-                    Controller.cursor_moving()
-                    Controller.detect_scrolling()
-                    Controller.detect_zooming()
-                    Controller.detect_clicking()
-                    Controller.detect_dragging()
-                    Controller.detect_special_gestures()
+                    # Controller işlemlerini güvenli şekilde çalıştır
+                    try:
+                        Controller.update_fingers_status()
+                        Controller.cursor_moving()
+                        Controller.detect_scrolling()
+                        Controller.detect_zooming()
+                        Controller.detect_clicking()
+                        Controller.detect_dragging()
+                        Controller.detect_special_gestures()
+                    except Exception as controller_error:
+                        print(f"⚠️ Controller hatası: {controller_error}")
+                        # Hata durumunda Controller'ı sıfırla
+                        Controller.hand_landmarks = None
                     
                     # Parmak durumlarını ekranda göster
                     draw_finger_status(img, w, h)
